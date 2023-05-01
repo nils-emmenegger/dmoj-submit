@@ -2,7 +2,7 @@
 name = "dmoj-submit"
 version = "0.1.0"
 authors = ["Nils Emmenegger", "Sava Glavan"]
-license = ""
+license = "MIT"
 description = "A CLI tool for submitting to DMOJ."
 homepage = "https://github.com/nils-emmenegger/dmoj-submit"
 repository = "https://github.com/nils-emmenegger/dmoj-submit"
