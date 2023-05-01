@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 clap = "4.2.5"
+confy = "0.3.1"
+
