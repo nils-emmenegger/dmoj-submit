@@ -1,4 +1,5 @@
 use clap::{Args, Parser, Subcommand};
+use serde::{Deserialize, Serialize};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -37,26 +38,41 @@ struct SubmitArgs {
     language: Option<String>,
 }
 
+#[derive(Serialize, Deserialize)]
+struct ConfyConfig {
+    /// API token
+    token: Option<String>,
+}
+
+impl Default for ConfyConfig {
+    fn default() -> Self {
+        Self { token: None }
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
+    const CONFY_APP_NAME: &str = "dmoj-submit";
+    const CONFY_CONFIG_NAME: &str = "config";
     match cli.command {
         Commands::Config(conf_args) => {
+            let mut cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)?;
             if let Some(token) = conf_args.token {
-                println!("Setting token to {}", token);
-                confy::store("dmoj-submit", None, token)?;
-                // add confirmation message if desired? error handling???
+                // TODO: add --verbose option so stuff like this doesn't show up by default
+                println!("Setting token to `{}`", token);
+                cfg.token = Some(token);
             }
-            Ok(())
+            confy::store(CONFY_APP_NAME, CONFY_CONFIG_NAME, cfg)?;
         }
         Commands::Submit(sub_args) => {
             println!(
-                "Submitting to problem {} with file {}",
+                "Submitting to problem {} with file `{}`",
                 sub_args.problem_code,
                 sub_args.file.display()
             );
             // TODO: get token and language from optional args or config
             // TODO: implement submit function
-            Ok(())
         }
-    }
+    };
+    Ok(())
 }
