@@ -1,56 +1,61 @@
-use clap::{arg, command, value_parser};
-use std::path::PathBuf;
+use clap::{Args, Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(author, version, about)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Set default API token, language, etc.
+    Config(ConfigArgs),
+    /// Submit to a problem
+    Submit(SubmitArgs),
+}
+
+#[derive(Args)]
+#[group(required = true, multiple = true)]
+struct ConfigArgs {
+    /// Set API token
+    #[arg(short, long)]
+    token: Option<String>,
+}
+
+#[derive(Args)]
+struct SubmitArgs {
+    /// Problem code
+    problem_code: String,
+    /// File to submit
+    file: std::path::PathBuf,
+    /// API token
+    #[arg(short, long)]
+    token: Option<String>,
+    /// Submission language
+    #[arg(short, long)]
+    language: Option<String>,
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let matches = command!()
-        .arg(
-            arg!([PATH])
-                // This argument is required for the program to run
-                .required(true)
-                .value_parser(value_parser!(PathBuf)),
-        )
-        .arg(
-            arg!(-t - -token[token])
-                // This argument is not required for the program to run, so the program may use a default value
-                .required(false)
-                .default_value("default"),
-        )
-        .arg(
-            arg!(-l - -language[language])
-                // This argument is not required for the program to run, so the program may use a default value
-                .required(false)
-                .default_value("default"),
-        )
-        .get_matches();
-
-    // check that provided file exists
-    if let Some(path) = matches.get_one::<PathBuf>("PATH") {
-        let result = std::fs::read_to_string(path);
-        match result {
-            // TODO: add desired behavior for each case
-            Ok(content) => {
-                println!("File content: {}", content);
+    let cli = Cli::parse();
+    match cli.command {
+        Commands::Config(conf_args) => {
+            if let Some(token) = conf_args.token {
+                println!("Setting token to {}", token);
             }
-            Err(error) => {
-                println!("Error: {}", error);
-            }
+            // TODO: make a config and set the arguments
+            Ok(())
+        }
+        Commands::Submit(sub_args) => {
+            println!(
+                "Submitting to problem {} with file {}",
+                sub_args.problem_code,
+                sub_args.file.display()
+            );
+            // TODO: get token and language from optional args or config
+            // TODO: implement submit function
+            Ok(())
         }
     }
-
-    // check if token argument has been provided
-    if let Some(token) = matches.get_one::<String>("token") {
-        if token.eq("default") {
-            // TODO: add desired behavior
-            println!("default token value");
-        }
-    }
-
-    if let Some(language) = matches.get_one::<String>("language") {
-        if language.eq("default") {
-            // TODO: add desired behavior
-            println!("default language value");
-        }
-    }
-
-    Ok(())
 }
