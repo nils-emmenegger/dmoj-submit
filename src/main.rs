@@ -28,7 +28,8 @@ struct ConfigArgs {
 #[derive(Args)]
 struct SubmitArgs {
     /// Problem code
-    problem_code: String,
+    #[arg(short, long)]
+    problem: Option<String>,
     /// File to submit
     file: std::path::PathBuf,
     /// API token
@@ -70,7 +71,7 @@ fn main() -> Result<()> {
         Commands::Submit(sub_args) => {
             println!(
                 "Submitting to problem {} with file `{}`",
-                sub_args.problem_code,
+                sub_args.problem,
                 sub_args.file.display()
             );
             // TODO: get token and language from optional args or config
