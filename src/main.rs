@@ -27,11 +27,11 @@ struct ConfigArgs {
 
 #[derive(Args)]
 struct SubmitArgs {
+    /// File to submit
+    file: std::path::PathBuf,
     /// Problem code
     #[arg(short, long)]
     problem: Option<String>,
-    /// File to submit
-    file: std::path::PathBuf,
     /// API token
     #[arg(short, long)]
     token: Option<String>,
@@ -70,7 +70,7 @@ fn main() -> Result<()> {
         }
         Commands::Submit(sub_args) => {
             println!(
-                "Submitting to problem {} with file `{}`",
+                "Submitting to problem {:?} with file `{}`",
                 sub_args.problem,
                 sub_args.file.display()
             );
