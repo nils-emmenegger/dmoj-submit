@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
@@ -50,19 +51,21 @@ impl Default for ConfyConfig {
     }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
     const CONFY_APP_NAME: &str = "dmoj-submit";
     const CONFY_CONFIG_NAME: &str = "config";
     match cli.command {
         Commands::Config(conf_args) => {
-            let mut cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)?;
+            let mut cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
+                .with_context(|| "could not load configuration")?;
             if let Some(token) = conf_args.token {
                 // TODO: add --verbose option so stuff like this doesn't show up by default
                 println!("Setting token to `{}`", token);
                 cfg.token = Some(token);
             }
-            confy::store(CONFY_APP_NAME, CONFY_CONFIG_NAME, cfg)?;
+            confy::store(CONFY_APP_NAME, CONFY_CONFIG_NAME, cfg)
+                .with_context(|| "could not store configuration")?;
         }
         Commands::Submit(sub_args) => {
             println!(
