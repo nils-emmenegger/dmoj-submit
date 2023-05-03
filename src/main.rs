@@ -44,7 +44,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(token) = conf_args.token {
                 println!("Setting token to {}", token);
             }
-            // TODO: make a config and set the arguments
+            confy::store("DMOJ-submit", None, token)?;
+            // add confirmation message if desired? error handling???
             Ok(())
         }
         Commands::Submit(sub_args) => {
