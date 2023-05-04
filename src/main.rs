@@ -61,7 +61,7 @@ fn main() -> Result<()> {
             let mut cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
                 .with_context(|| "could not load configuration")?;
             if let Some(token) = conf_args.token {
-                // TODO: add --verbose option so stuff like this doesn't show up by default
+                /// TODO: add --verbose option so stuff like this doesn't show up by default
                 println!("Setting token to `{}`", token);
                 cfg.token = Some(token);
             }
@@ -69,11 +69,42 @@ fn main() -> Result<()> {
                 .with_context(|| "could not store configuration")?;
         }
         Commands::Submit(sub_args) => {
-            println!(
-                "Submitting to problem {:?} with file `{}`",
-                sub_args.problem,
-                sub_args.file.display()
-            );
+            let cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
+                .with_context(|| "could not load configuration")?;
+            let problem = if sub_args.problem.is_none() {
+                /// devil worshipping ocult voodoo, IDEK if it works
+                /// change file from PathBuf into string and then take the prefix of that string that ends at the occurence of the period
+                sub_args
+                    .file
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap()[..sub_args
+                    .file
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap()
+                    .find('.')
+                    .unwrap()]
+                    .to_string()
+            } else {
+                sub_args.problem.unwrap()
+            };
+
+            let token = if sub_args.token.is_none() {
+                cfg.token.unwrap()
+            } else {
+                sub_args.token.unwrap()
+            };
+
+            let language = if sub_args.language.is_none() {
+                // need to know what config file struct will look like prior to being able to properly implement this, place holder value
+                "temp".to_string()
+            } else {
+                sub_args.language.unwrap()
+            };
+
             // TODO: get token and language from optional args or config
             // TODO: implement submit function
         }
