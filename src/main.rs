@@ -72,22 +72,7 @@ fn main() -> Result<()> {
             let cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
                 .with_context(|| "could not load configuration")?;
             let problem = if sub_args.problem.is_none() {
-                /// devil worshipping ocult voodoo, IDEK if it works
-                /// change file from PathBuf into string and then take the prefix of that string that ends at the occurence of the period
-                sub_args
-                    .file
-                    .clone()
-                    .into_os_string()
-                    .into_string()
-                    .unwrap()[..sub_args
-                    .file
-                    .clone()
-                    .into_os_string()
-                    .into_string()
-                    .unwrap()
-                    .find('.')
-                    .unwrap()]
-                    .to_string()
+                sub_args.file.file_prefix().unwrap()                
             } else {
                 sub_args.problem.unwrap()
             };
