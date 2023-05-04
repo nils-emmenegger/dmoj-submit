@@ -61,7 +61,7 @@ fn main() -> Result<()> {
             let mut cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
                 .with_context(|| "could not load configuration")?;
             if let Some(token) = conf_args.token {
-                /// TODO: add --verbose option so stuff like this doesn't show up by default
+                // TODO: add --verbose option so stuff like this doesn't show up by default
                 println!("Setting token to `{}`", token);
                 cfg.token = Some(token);
             }
@@ -71,26 +71,39 @@ fn main() -> Result<()> {
         Commands::Submit(sub_args) => {
             let cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
                 .with_context(|| "could not load configuration")?;
-            let problem = if sub_args.problem.is_none() {
-                sub_args.file.file_prefix().unwrap()                
+            let problem = if let Some(problem) = sub_args.problem {
+                problem
             } else {
-                sub_args.problem.unwrap()
+                // if unspecified, get problem name from file stem
+                sub_args
+                    .file
+                    .file_stem()
+                    .with_context(|| "no file name specified")?
+                    .to_str()
+                    .with_context(|| "file name is not valid Unicode")?
+                    .to_string()
             };
-
-            let token = if sub_args.token.is_none() {
-                cfg.token.unwrap()
+            let token = if let Some(token) = sub_args.token {
+                token
             } else {
-                sub_args.token.unwrap()
+                // if unspecified, get API token from configuration
+                cfg.token
+                    .with_context(|| "API token not defined in configuration")?
             };
-
-            let language = if sub_args.language.is_none() {
+            let language = if let Some(language) = sub_args.language {
+                language
+            } else {
+                // if unspecified, get language from file extension + configuration
                 // need to know what config file struct will look like prior to being able to properly implement this, place holder value
                 "temp".to_string()
-            } else {
-                sub_args.language.unwrap()
             };
-
-            // TODO: get token and language from optional args or config
+            println!(
+                "Submitting to problem {} with file {}, token `{}`, and language {}",
+                problem,
+                sub_args.file.display(),
+                token,
+                language
+            );
             // TODO: implement submit function
         }
     };
