@@ -15,6 +15,8 @@ enum Commands {
     Config(ConfigArgs),
     /// Submit to a problem
     Submit(SubmitArgs),
+    /// Retrieve available languages from the DMOJ API
+    ListLanguages,
 }
 
 #[derive(Args)]
@@ -56,6 +58,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     const CONFY_APP_NAME: &str = "dmoj-submit";
     const CONFY_CONFIG_NAME: &str = "config";
+    const BASE_URL: &str = "https://dmoj.ca";
     match cli.command {
         Commands::Config(conf_args) => {
             let mut cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
@@ -105,6 +108,12 @@ fn main() -> Result<()> {
                 language
             );
             // TODO: implement submit function
+        }
+        Commands::ListLanguages => {
+            println!(
+                "{}",
+                reqwest::blocking::get(format!("{BASE_URL}/api/v2/languages"))?.text()?
+            );
         }
     };
     Ok(())
