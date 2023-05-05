@@ -1,10 +1,13 @@
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
+use clap_verbosity_flag::Verbosity;
 
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Cli {
+    #[command(flatten)]
+    verbose: Verbosity,
     #[command(subcommand)]
     command: Commands,
 }
@@ -56,6 +59,10 @@ impl Default for ConfyConfig {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    env_logger::Builder::new()
+        .filter_level(cli.verbose.log_level_filter())
+        .init();
+    
     const CONFY_APP_NAME: &str = "dmoj-submit";
     const CONFY_CONFIG_NAME: &str = "config";
     const BASE_URL: &str = "https://dmoj.ca";
@@ -64,8 +71,7 @@ fn main() -> Result<()> {
             let mut cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
                 .with_context(|| "could not load configuration")?;
             if let Some(token) = conf_args.token {
-                // TODO: add --verbose option so stuff like this doesn't show up by default
-                println!("Setting token to `{}`", token);
+                log::info!("setting token to '{}'", token);
                 cfg.token = Some(token);
             }
             confy::store(CONFY_APP_NAME, CONFY_CONFIG_NAME, cfg)
