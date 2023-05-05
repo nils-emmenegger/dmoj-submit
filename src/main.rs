@@ -1,7 +1,7 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{Args, Parser, Subcommand};
-use serde::{Deserialize, Serialize};
 use clap_verbosity_flag::Verbosity;
+use serde::{Deserialize, Serialize};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -57,12 +57,64 @@ impl Default for ConfyConfig {
     }
 }
 
+#[allow(dead_code)]
+/// DMOJ API response
+#[derive(Deserialize)]
+struct APIResponse<T> {
+    api_version: String,
+    method: String,
+    fetched: String,
+    data: Option<T>,
+    error: Option<APIErrorFormat>,
+}
+
+#[allow(dead_code)]
+/// DMOJ API data format for a single object
+#[derive(Deserialize)]
+struct APISingleData<T> {
+    object: T,
+}
+
+#[allow(dead_code)]
+/// DMOJ API data format for lists of objects
+#[derive(Deserialize)]
+struct APIListData<T> {
+    current_object_count: i32,
+    objects_per_page: i32,
+    total_objects: i32,
+    page_index: i32,
+    total_pages: i32,
+    has_more: bool,
+    objects: Vec<T>,
+}
+
+#[allow(dead_code)]
+/// DMOJ API error format
+#[derive(Deserialize)]
+struct APIErrorFormat {
+    code: String,
+    message: String,
+}
+
+#[allow(dead_code)]
+/// DMOJ API /api/v2/languages format
+#[derive(Deserialize)]
+struct APILanguage {
+    id: i32,
+    key: String,
+    short_name: Option<String>,
+    common_name: String,
+    ace_mode_name: String,
+    pygments_name: String,
+    code_template: String,
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
         .init();
-    
+
     const CONFY_APP_NAME: &str = "dmoj-submit";
     const CONFY_CONFIG_NAME: &str = "config";
     const BASE_URL: &str = "https://dmoj.ca";
@@ -106,7 +158,7 @@ fn main() -> Result<()> {
                 // need to know what config file struct will look like prior to being able to properly implement this, place holder value
                 "temp".to_string()
             };
-            println!(
+            log::info!(
                 "Submitting to problem {} with file {}, token `{}`, and language {}",
                 problem,
                 sub_args.file.display(),
@@ -116,10 +168,35 @@ fn main() -> Result<()> {
             // TODO: implement submit function
         }
         Commands::ListLanguages => {
-            println!(
-                "{}",
-                reqwest::blocking::get(format!("{BASE_URL}/api/v2/languages"))?.text()?
-            );
+            let json: APIResponse<APIListData<APILanguage>> =
+                reqwest::blocking::get(format!("{BASE_URL}/api/v2/languages"))
+                    .with_context(|| "API request failed")?
+                    .json()
+                    .with_context(|| "converting API request to json failed")?;
+            if let Some(error) = json.error {
+                return Err(anyhow!(
+                    "API request failed with code {} and message `{}`",
+                    error.code,
+                    error.message
+                ));
+            } else if let Some(data) = json.data {
+                if data.has_more {
+                    // TODO: fix this
+                    log::error!("There is more than one page of languages, but we are only reading the first one");
+                }
+                println!(
+                    "{}",
+                    data.objects
+                        .iter()
+                        .map(|lang| format!("{}: {}", lang.common_name, lang.key.to_lowercase()))
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                );
+            } else {
+                return Err(anyhow!(
+                    "Neither data nor error were defined in the API response"
+                ));
+            }
         }
     };
     Ok(())
