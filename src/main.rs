@@ -184,14 +184,13 @@ fn main() -> Result<()> {
                     // TODO: fix this
                     log::error!("There is more than one page of languages, but we are only reading the first one");
                 }
-                println!(
-                    "{}",
-                    data.objects
-                        .iter()
-                        .map(|lang| format!("{}: {}", lang.common_name, lang.key.to_lowercase()))
-                        .collect::<Vec<String>>()
-                        .join("\n")
-                );
+                let mut print_lang_list = data
+                    .objects
+                    .iter()
+                    .map(|lang| format!("{}: {}", lang.common_name, lang.key.to_lowercase()))
+                    .collect::<Vec<String>>();
+                print_lang_list.sort_unstable();
+                println!("{}", print_lang_list.join("\n"));
             } else {
                 return Err(anyhow!(
                     "Neither data nor error were defined in the API response"
