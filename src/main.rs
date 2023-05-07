@@ -155,8 +155,15 @@ fn main() -> Result<()> {
                 language
             } else {
                 // if unspecified, get language from file extension + configuration
-                // need to know what config file struct will look like prior to being able to properly implement this, place holder value
-                "temp".to_string()
+                // need to know what config file struct will look like prior to being able to properly implement this
+                // TODO: get submission language from file extension (provided below)
+                sub_args
+                    .file
+                    .extension()
+                    .with_context(|| "no file extension specified")?
+                    .to_str()
+                    .with_context(|| "file extension is not valid Unicode")?
+                    .to_string()
             };
             log::info!(
                 "Submitting to problem {} with file {}, token `{}`, and language {}",
