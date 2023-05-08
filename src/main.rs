@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -28,6 +29,9 @@ struct ConfigArgs {
     /// Set API token
     #[arg(short, long)]
     token: Option<String>,
+    /// File extension -> language key mapping, e.g. `cpp:cpp20,py:pypy3,java:java8`
+    #[arg(short, long)]
+    language: Option<String>,
 }
 
 #[derive(Args)]
@@ -45,16 +49,12 @@ struct SubmitArgs {
     language: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 struct ConfyConfig {
     /// API token
     token: Option<String>,
-}
-
-impl Default for ConfyConfig {
-    fn default() -> Self {
-        Self { token: None }
-    }
+    /// File extension -> language key mapping
+    ext_key_map: Option<HashMap<String, String>>,
 }
 
 #[allow(dead_code)]
@@ -125,6 +125,28 @@ fn main() -> Result<()> {
             if let Some(token) = conf_args.token {
                 log::info!("setting token to '{}'", token);
                 cfg.token = Some(token);
+            }
+            if let Some(language) = conf_args.language {
+                if cfg.ext_key_map.is_none() {
+                    cfg.ext_key_map = Some(HashMap::new());
+                }
+                // split by `,` then split by `:` then insert the resulting pairs into hashmap
+                language
+                    .split(',')
+                    .map(|pair| match pair.split(':').collect::<Vec<&str>>()[..] {
+                        [ext, key] => Some((ext, key)),
+                        _ => None,
+                    })
+                    .collect::<Option<Vec<_>>>()
+                    .with_context(|| "couldn't parse language argument")?
+                    .into_iter()
+                    .for_each(|(ext, key)| {
+                        log::info!("Set extension {ext} to language key {key}");
+                        cfg.ext_key_map
+                            .as_mut()
+                            .unwrap()
+                            .insert(key.to_string(), ext.to_string());
+                    });
             }
             confy::store(CONFY_APP_NAME, CONFY_CONFIG_NAME, cfg)
                 .with_context(|| "could not store configuration")?;
