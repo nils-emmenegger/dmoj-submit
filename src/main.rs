@@ -140,12 +140,12 @@ fn main() -> Result<()> {
                     .collect::<Option<Vec<_>>>()
                     .with_context(|| "couldn't parse language argument")?
                     .into_iter()
-                    .for_each(|(ext, key)| {
-                        log::info!("Set extension {ext} to language key {key}");
+                    .for_each(|(ext, lang_key)| {
+                        log::info!("Set extension {ext} to language key {lang_key}");
                         cfg.ext_key_map
                             .as_mut()
                             .unwrap()
-                            .insert(key.to_string(), ext.to_string());
+                            .insert(ext.to_string(), lang_key.to_string());
                     });
             }
             confy::store(CONFY_APP_NAME, CONFY_CONFIG_NAME, cfg)
