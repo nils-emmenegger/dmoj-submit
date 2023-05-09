@@ -152,6 +152,9 @@ fn main() -> Result<()> {
                 .with_context(|| "could not store configuration")?;
         }
         Commands::Submit(sub_args) => {
+            // check that provided file exists
+            if !sub_args.file.exists() { return Err(anyhow!("could not find file {}", sub_args.file.display())); }
+
             let cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
                 .with_context(|| "could not load configuration")?;
             let problem = if let Some(problem) = sub_args.problem {
