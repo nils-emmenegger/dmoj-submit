@@ -118,6 +118,15 @@ fn main() -> Result<()> {
     const CONFY_APP_NAME: &str = "dmoj-submit";
     const CONFY_CONFIG_NAME: &str = "config";
     const BASE_URL: &str = "https://dmoj.ca";
+    // TODO: add more defaults
+    /// file extension -> language key default mapping as array of tuples
+    const EXT_KEY_DEFAULT_TUPLES: [(&str, &str); 5] = [
+        ("c", "c"),
+        ("cpp", "cpp20"),
+        ("java", "java"),
+        ("py", "pypy3"),
+        ("rs", "rust"),
+    ];
     match cli.command {
         Commands::Config(conf_args) => {
             let mut cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
@@ -153,8 +162,9 @@ fn main() -> Result<()> {
         }
         Commands::Submit(sub_args) => {
             // check that provided file exists
-            if !sub_args.file.exists() { return Err(anyhow!("could not find file {}", sub_args.file.display())); }
-
+            if !sub_args.file.exists() {
+                return Err(anyhow!("could not find file {}", sub_args.file.display()));
+            }
             let cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
                 .with_context(|| "could not load configuration")?;
             let problem = if let Some(problem) = sub_args.problem {
@@ -180,15 +190,28 @@ fn main() -> Result<()> {
                 language
             } else {
                 // if unspecified, get language from file extension + configuration
-                // need to know what config file struct will look like prior to being able to properly implement this
-                // TODO: get submission language from file extension (provided below)
-                sub_args
+                let file_ext = sub_args
                     .file
                     .extension()
                     .with_context(|| "no file extension specified")?
                     .to_str()
                     .with_context(|| "file extension is not valid Unicode")?
-                    .to_string()
+                    .to_string();
+                let ext_key_default_map: HashMap<String, String> = HashMap::from_iter(
+                    EXT_KEY_DEFAULT_TUPLES
+                        .into_iter()
+                        .map(|(key, val)| (key.to_string(), val.to_string())),
+                );
+                if let Some(cfg_lang_key) =
+                    cfg.ext_key_map.and_then(|hm| hm.get(&file_ext).cloned())
+                {
+                    cfg_lang_key
+                } else if let Some(default_lang_key) = ext_key_default_map.get(&file_ext).cloned() {
+                    log::warn!("Defaulting to {default_lang_key}");
+                    default_lang_key
+                } else {
+                    return Err(anyhow!("could not determine language"));
+                }
             };
             log::info!(
                 "Submitting to problem {} with file {}, token `{}`, and language {}",
@@ -198,7 +221,7 @@ fn main() -> Result<()> {
                 language
             );
             // TODO: implement submit function
-            
+
             let client = reqwest::blocking::Client::new();
             let header = format!("Bearer {}", token);
             let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
@@ -212,9 +235,11 @@ fn main() -> Result<()> {
                 200 => println!("200, all good"),
                 400 => println!("400, bad request, your header is no good"),
                 401 => println!("401, unauthorized, your token is no good"),
-                403 => println!("403, forbidden, you are trying to access the admin portion of the site"),
+                403 => println!(
+                    "403, forbidden, you are trying to access the admin portion of the site"
+                ),
                 404 => println!("404, not found, the problem does not exist"),
-                _ => println!("reaching this case shouldn't be possible")                
+                _ => println!("reaching this case shouldn't be possible"),
             }
         }
         Commands::ListLanguages => {
