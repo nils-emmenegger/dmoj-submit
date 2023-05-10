@@ -198,6 +198,24 @@ fn main() -> Result<()> {
                 language
             );
             // TODO: implement submit function
+            
+            let client = reqwest::blocking::Client::new();
+            let header = format!("Bearer {}", token);
+            let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
+            println!("Fetching {} ...", url);
+            // TODO: come up with a better variable name than "temp" also consider turning "Authorization" into a const
+            let temp = client.get(url).header("Authorization", header).send()?;
+            let res = temp.status().as_u16();
+            match res {
+                // may want to add cases such as 500s for example
+                // TODO: specify behavior rather than just having it print out the HTTP status
+                200 => println!("200, all good"),
+                400 => println!("400, bad request, your header is no good"),
+                401 => println!("401, unauthorized, your token is no good"),
+                403 => println!("403, forbidden, you are trying to access the admin portion of the site"),
+                404 => println!("404, not found, the problem does not exist"),
+                _ => println!("reaching this case shouldn't be possible")                
+            }
         }
         Commands::ListLanguages => {
             let json: APIResponse<APIListData<APILanguage>> =
