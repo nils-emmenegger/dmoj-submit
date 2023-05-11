@@ -120,12 +120,21 @@ fn main() -> Result<()> {
     const BASE_URL: &str = "https://dmoj.ca";
     // TODO: add more defaults
     /// file extension -> language key default mapping as array of tuples
-    const EXT_KEY_DEFAULT_TUPLES: [(&str, &str); 5] = [
+    const EXT_KEY_DEFAULT_TUPLES: [(&str, &str); 14] = [
         ("c", "c"),
         ("cpp", "cpp20"),
         ("java", "java"),
+        ("kt", "kotlin"),
         ("py", "pypy3"),
+        ("lua", "lua"),
         ("rs", "rust"),
+        ("txt", "text"),
+        ("go", "go"),
+        ("hs", "hask"),
+        ("js", "v8js"),
+        ("nim", "nim"),
+        ("ml", "ocaml"),
+        ("zig", "zig"),
     ];
     match cli.command {
         Commands::Config(conf_args) => {
@@ -162,7 +171,7 @@ fn main() -> Result<()> {
         }
         Commands::Submit(sub_args) => {
             // check that provided file exists
-            if !sub_args.file.exists() {
+            if !sub_args.file.is_file() {
                 return Err(anyhow!("could not find file {}", sub_args.file.display()));
             }
             let cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
@@ -231,15 +240,19 @@ fn main() -> Result<()> {
             let res = temp.status().as_u16();
             match res {
                 // may want to add cases such as 500s for example
-                // TODO: specify behavior rather than just having it print out the HTTP status
+                // TODO: make sure error messages are satisfactory
+                // TODO: finish implementing submit function in case that res is 200
+                // TODO: consider adding special case for 500 level HTTP requests
                 200 => println!("200, all good"),
-                400 => println!("400, bad request, your header is no good"),
-                401 => println!("401, unauthorized, your token is no good"),
-                403 => println!(
-                    "403, forbidden, you are trying to access the admin portion of the site"
-                ),
-                404 => println!("404, not found, the problem does not exist"),
-                _ => println!("reaching this case shouldn't be possible"),
+                400 => return Err(anyhow!("Error 400, bad request, your header is no good")),
+                401 => return Err(anyhow!("Error 401, unauthorized, your token is no good")),
+                403 => {
+                    return Err(anyhow!(
+                    "Error 403, forbidden, you are trying to access the admin portion of the site"
+                ))
+                }
+                404 => return Err(anyhow!("Error 404, not found, the problem does not exist")),
+                _ => return Err(anyhow!("unknown network error")),
             }
         }
         Commands::ListLanguages => {
