@@ -230,18 +230,12 @@ fn main() -> Result<()> {
                 token,
                 language
             );
-            // TODO: implement submit function
-
             let client = reqwest::blocking::Client::new();
             let header = format!("Bearer {}", token);
             let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
             println!("Fetching {} ...", url);
             // TODO: come up with a better variable name than "temp" also consider turning "Authorization" into a const
-            //       also look into this .clone() wackyness
-            let temp = client
-                .get(url.clone())
-                .header("Authorization", header.clone())
-                .send()?;
+            let temp = client.get(&url).header("Authorization", &header).send()?;
             let res = temp.status().as_u16();
             match res {
                 // may want to add cases such as 500s for example
@@ -254,14 +248,38 @@ fn main() -> Result<()> {
                         ("source", fs::read_to_string(sub_args.file).unwrap()),
                         ("language", "51".to_string()),
                     ];
+                    // TODO: come up with better variable names than "submission" and "p"
                     let submission = client
-                        .post(url)
+                        .post(&url)
                         .form(&params)
-                        .header("Authorization", header)
+                        .header("Authorization", &header)
                         .send()?;
-                    // TODO: finish implementing, next 2 lines are just a placeholder
-                    let p = submission.status().as_u16();
-                    println!("status: {}", p);
+                    let p = &submission.url().as_str()[27..];
+                    println!("submission: {}", p);
+                    // TODO: a lot of the following code reappears with minimal changes in the "list-languages" option, consider turning it into a function?
+                    let json: APIResponse<APIListData<APILanguage>> =
+                        reqwest::blocking::get(format!("{BASE_URL}/api/v2/submission/{}", p))
+                            .with_context(|| "API request failed")?
+                            .json()
+                            .with_context(|| "converting API request to json failed")?;
+
+                    if let Some(error) = json.error {
+                        return Err(anyhow!(
+                            "API request failed with code {} and message `{}`",
+                            error.code,
+                            error.message
+                        ));
+                    } else if let Some(data) = json.data {
+                        if data.has_more {
+                            // TODO: fix this, this case will likely occur if there is a lot of cases
+                            log::error!("There is more than one page of languages, but we are only reading the first one");
+                        }
+                        // TODO: finish implementing here
+                    } else {
+                        return Err(anyhow!(
+                            "Neither data nor error were defined in the API response"
+                        ));
+                    }
                 }
                 400 => return Err(anyhow!("Error 400, bad request, your header is no good")),
                 401 => return Err(anyhow!("Error 401, unauthorized, your token is no good")),
