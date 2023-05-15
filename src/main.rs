@@ -3,6 +3,7 @@ use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -236,14 +237,32 @@ fn main() -> Result<()> {
             let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
             println!("Fetching {} ...", url);
             // TODO: come up with a better variable name than "temp" also consider turning "Authorization" into a const
-            let temp = client.get(url).header("Authorization", header).send()?;
+            //       also look into this .clone() wackyness
+            let temp = client
+                .get(url.clone())
+                .header("Authorization", header.clone())
+                .send()?;
             let res = temp.status().as_u16();
             match res {
                 // may want to add cases such as 500s for example
                 // TODO: make sure error messages are satisfactory
-                // TODO: finish implementing submit function in case that res is 200
                 // TODO: consider adding special case for 500 level HTTP requests
-                200 => println!("200, all good"),
+                200 => {
+                    // TODO: change language id
+                    let params = [
+                        ("problem", problem),
+                        ("source", fs::read_to_string(sub_args.file).unwrap()),
+                        ("language", "51".to_string()),
+                    ];
+                    let submission = client
+                        .post(url)
+                        .form(&params)
+                        .header("Authorization", header)
+                        .send()?;
+                    // TODO: finish implementing, next 2 lines are just a placeholder
+                    let p = submission.status().as_u16();
+                    println!("status: {}", p);
+                }
                 400 => return Err(anyhow!("Error 400, bad request, your header is no good")),
                 401 => return Err(anyhow!("Error 401, unauthorized, your token is no good")),
                 403 => {
