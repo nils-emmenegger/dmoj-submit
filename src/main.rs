@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
+use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -258,67 +259,54 @@ fn main() -> Result<()> {
                 token,
                 language
             );
+            // Try to access the /problem/{problem}/submit page
             let client = reqwest::blocking::Client::new();
             let header = format!("Bearer {}", token);
             let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
             println!("Fetching {} ...", url);
-            // TODO: come up with a better variable name than "temp" also consider turning "Authorization" into a const
-            let temp = client.get(&url).header("Authorization", &header).send()?;
+            // TODO: come up with a better variable name than "temp"
+            let temp = client.get(&url).header(AUTHORIZATION, &header).send()?;
             let res = temp.status().as_u16();
-            match res {
-                // may want to add cases such as 500s for example
-                // TODO: make sure error messages are satisfactory
-                // TODO: consider adding special case for 500 level HTTP requests
-                200 => {
-                    // TODO: change language id
-                    let params = [
-                        ("problem", problem),
-                        ("source", fs::read_to_string(sub_args.file).unwrap()),
-                        ("language", "51".to_string()),
-                    ];
-                    // TODO: come up with better variable names than "submission" and "p"
-                    let submission = client
-                        .post(&url)
-                        .form(&params)
-                        .header("Authorization", &header)
-                        .send()?;
-                    let p = &submission.url().as_str()[27..];
-                    println!("submission: {}", p);
-                    // TODO: a lot of the following code reappears with minimal changes in the "list-languages" option, consider turning it into a function?
-                    let json: APIResponse<APIListData<APILanguage>> =
-                        reqwest::blocking::get(format!("{BASE_URL}/api/v2/submission/{}", p))
-                            .with_context(|| "API request failed")?
-                            .json()
-                            .with_context(|| "converting API request to json failed")?;
-
-                    if let Some(error) = json.error {
-                        return Err(anyhow!(
-                            "API request failed with code {} and message `{}`",
-                            error.code,
-                            error.message
-                        ));
-                    } else if let Some(data) = json.data {
-                        if data.has_more {
-                            // TODO: fix this, this case will likely occur if there is a lot of cases
-                            log::error!("There is more than one page of languages, but we are only reading the first one");
-                        }
-                        // TODO: finish implementing here
-                    } else {
-                        return Err(anyhow!(
-                            "Neither data nor error were defined in the API response"
-                        ));
-                    }
-                }
-                400 => return Err(anyhow!("Error 400, bad request, your header is no good")),
-                401 => return Err(anyhow!("Error 401, unauthorized, your token is no good")),
-                403 => {
-                    return Err(anyhow!(
-                    "Error 403, forbidden, you are trying to access the admin portion of the site"
-                ))
-                }
-                404 => return Err(anyhow!("Error 404, not found, the problem does not exist")),
-                _ => return Err(anyhow!("unknown network error")),
+            if res != 200 {
+                return match res {
+                    // TODO: make sure error messages are satisfactory
+                    400 => Err(anyhow!("Error 400, bad request, your header is no good")),
+                    401 => Err(anyhow!("Error 401, unauthorized, your token is no good")),
+                    403 => Err(anyhow!("Error 403, forbidden, you are trying to access the admin portion of the site")),
+                    404 => Err(anyhow!("Error 404, not found, the problem does not exist")),
+                    500 => Err(anyhow!("Error 500, internal server error")),
+                    code => Err(anyhow!("Code {code}, unknown network error")),
+                };
             }
+            // TODO: figure out what to do about the .to_lowercase spam
+            let key_id_map = get_languages()?
+                .into_iter()
+                .map(|lang| (lang.key.to_lowercase(), lang.id))
+                .collect::<HashMap<String, i32>>();
+            let params = [
+                ("problem", problem),
+                (
+                    "source",
+                    fs::read_to_string(sub_args.file).with_context(|| "could not read file")?,
+                ),
+                (
+                    "language",
+                    key_id_map
+                        .get(&language.to_lowercase())
+                        .with_context(|| "could not determine language id")?
+                        .to_string(),
+                ),
+            ];
+            // TODO: empty file returns status code 200 but does not actually submit or redirect
+            // TODO: come up with better variable names than "submission" and "p"
+            let submission = client
+                .post(&url)
+                .form(&params)
+                .header(AUTHORIZATION, &header)
+                .send()?;
+            let p = &submission.url().as_str()[27..];
+            println!("submission: {}", p);
+            // TODO: monitor submission status using the /api/v2/submission/<submission id> endpoint
         }
         Commands::ListLanguages => {
             let mut print_lang_list = get_languages()?
