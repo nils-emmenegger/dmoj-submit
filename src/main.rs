@@ -110,6 +110,35 @@ struct APILanguage {
     code_template: String,
 }
 
+fn get_languages() -> Result<Vec<APILanguage>> {
+    let json: APIResponse<APIListData<APILanguage>> =
+        reqwest::blocking::get(format!("{BASE_URL}/api/v2/languages"))
+            .with_context(|| "API request failed")?
+            .json()
+            .with_context(|| "converting API response to json failed")?;
+    if let Some(error) = json.error {
+        Err(anyhow!(
+            "API request failed with code {} and message `{}`",
+            error.code,
+            error.message
+        ))
+    } else if let Some(data) = json.data {
+        if data.has_more {
+            // TODO: fix this
+            log::error!(
+                "There is more than one page of languages, but we are only reading the first one"
+            );
+        }
+        Ok(data.objects)
+    } else {
+        Err(anyhow!(
+            "Neither data nor error were defined in the API response"
+        ))
+    }
+}
+
+const BASE_URL: &str = "https://dmoj.ca";
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     env_logger::Builder::new()
@@ -118,7 +147,6 @@ fn main() -> Result<()> {
 
     const CONFY_APP_NAME: &str = "dmoj-submit";
     const CONFY_CONFIG_NAME: &str = "config";
-    const BASE_URL: &str = "https://dmoj.ca";
     // TODO: add more defaults
     /// file extension -> language key default mapping as array of tuples
     const EXT_KEY_DEFAULT_TUPLES: [(&str, &str); 14] = [
@@ -293,34 +321,12 @@ fn main() -> Result<()> {
             }
         }
         Commands::ListLanguages => {
-            let json: APIResponse<APIListData<APILanguage>> =
-                reqwest::blocking::get(format!("{BASE_URL}/api/v2/languages"))
-                    .with_context(|| "API request failed")?
-                    .json()
-                    .with_context(|| "converting API request to json failed")?;
-            if let Some(error) = json.error {
-                return Err(anyhow!(
-                    "API request failed with code {} and message `{}`",
-                    error.code,
-                    error.message
-                ));
-            } else if let Some(data) = json.data {
-                if data.has_more {
-                    // TODO: fix this
-                    log::error!("There is more than one page of languages, but we are only reading the first one");
-                }
-                let mut print_lang_list = data
-                    .objects
-                    .iter()
-                    .map(|lang| format!("{}: {}", lang.common_name, lang.key.to_lowercase()))
-                    .collect::<Vec<String>>();
-                print_lang_list.sort_unstable();
-                println!("{}", print_lang_list.join("\n"));
-            } else {
-                return Err(anyhow!(
-                    "Neither data nor error were defined in the API response"
-                ));
-            }
+            let mut print_lang_list = get_languages()?
+                .into_iter()
+                .map(|lang| format!("{}: {}", lang.common_name, lang.key.to_lowercase()))
+                .collect::<Vec<String>>();
+            print_lang_list.sort_unstable();
+            println!("{}", print_lang_list.join("\n"));
         }
     };
     Ok(())
