@@ -3,8 +3,7 @@ use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fs;
+use std::{collections::HashMap, fs};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -204,6 +203,14 @@ fn main() -> Result<()> {
             if !sub_args.file.is_file() {
                 return Err(anyhow!("could not find file {}", sub_args.file.display()));
             }
+
+            let source =
+                fs::read_to_string(&sub_args.file).with_context(|| "could not read file")?;
+
+            if source.trim().is_empty() {
+                return Err(anyhow!("file {} is empty", sub_args.file.display()));
+            }
+
             let cfg: ConfyConfig = confy::load(CONFY_APP_NAME, CONFY_CONFIG_NAME)
                 .with_context(|| "could not load configuration")?;
             let problem = if let Some(problem) = sub_args.problem {
@@ -264,20 +271,7 @@ fn main() -> Result<()> {
             let header = format!("Bearer {}", token);
             let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
             println!("Fetching {} ...", url);
-            // TODO: come up with a better variable name than "temp"
-            let temp = client.get(&url).header(AUTHORIZATION, &header).send()?;
-            let res = temp.status().as_u16();
-            if res != 200 {
-                return match res {
-                    // TODO: make sure error messages are satisfactory
-                    400 => Err(anyhow!("Error 400, bad request, your header is no good")),
-                    401 => Err(anyhow!("Error 401, unauthorized, your token is no good")),
-                    403 => Err(anyhow!("Error 403, forbidden, you are trying to access the admin portion of the site")),
-                    404 => Err(anyhow!("Error 404, not found, the problem does not exist")),
-                    500 => Err(anyhow!("Error 500, internal server error")),
-                    code => Err(anyhow!("Code {code}, unknown network error")),
-                };
-            }
+
             // TODO: figure out what to do about the .to_lowercase spam
             let key_id_map = get_languages()?
                 .into_iter()
@@ -285,10 +279,7 @@ fn main() -> Result<()> {
                 .collect::<HashMap<String, i32>>();
             let params = [
                 ("problem", problem),
-                (
-                    "source",
-                    fs::read_to_string(sub_args.file).with_context(|| "could not read file")?,
-                ),
+                ("source", source),
                 (
                     "language",
                     key_id_map
@@ -298,14 +289,29 @@ fn main() -> Result<()> {
                 ),
             ];
             // TODO: empty file returns status code 200 but does not actually submit or redirect
-            // TODO: come up with better variable names than "submission" and "p"
+            // FIXED!, files are check to ensure they are not empty now so this should not be possible.
+            //         Still keeping the original comment because successful submissions should return
+            //         a 300 error code, not a 200
             let submission = client
                 .post(&url)
                 .form(&params)
                 .header(AUTHORIZATION, &header)
                 .send()?;
-            let p = &submission.url().as_str()[27..];
-            println!("submission: {}", p);
+            let res = submission.status().as_u16();
+            // TODO: figure out wonkiness with POST codes to make sure it does not break the below code block
+            if res != 200 {
+                return match res {
+                    400 => Err(anyhow!("Error 400, bad request, the header you provided is invalid")),
+                    401 => Err(anyhow!("Error 401, unauthorized, the token you provided is invalid")),
+                    403 => Err(anyhow!("Error 403, forbidden, you are trying to access the admin portion of the site")),
+                    404 => Err(anyhow!("Error 404, not found, the problem does not exist")),
+                    500 => Err(anyhow!("Error 500, internal server error")),
+                    code => Err(anyhow!("Code {code}, unknown network error")),
+                };
+            }
+
+            let submission_id = &submission.url().as_str()[27..];
+            println!("submission: {}", submission_id);
             // TODO: monitor submission status using the /api/v2/submission/<submission id> endpoint
         }
         Commands::ListLanguages => {
