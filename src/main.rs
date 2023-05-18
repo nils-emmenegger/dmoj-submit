@@ -111,6 +111,55 @@ struct APILanguage {
     code_template: String,
 }
 
+#[allow(dead_code)]
+/// DMOJ API /api/v2/submission/<submission id> format
+#[derive(Deserialize)]
+struct APISubmission {
+    id: i32,
+    problem: String,
+    user: String,
+    date: String,
+    time: Option<f64>,
+    memory: Option<f64>,
+    points: Option<f64>,
+    language: String,
+    status: String,
+    result: Option<String>,
+    case_points: f64,
+    case_total: f64,
+    cases: Vec<APISubmissionCaseOrBatch>,
+}
+
+#[allow(dead_code)]
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum APISubmissionCaseOrBatch {
+    Case(APISubmissionCase),
+    Batch(APISubmissionBatch),
+}
+
+#[allow(dead_code)]
+#[derive(Deserialize)]
+struct APISubmissionCase {
+    r#type: String,
+    case_id: i32,
+    status: String,
+    time: f64,
+    memory: f64,
+    points: f64,
+    total: f64,
+}
+
+#[allow(dead_code)]
+#[derive(Deserialize)]
+struct APISubmissionBatch {
+    r#type: String,
+    batch_id: i32,
+    cases: Vec<APISubmissionCase>,
+    points: f64,
+    total: f64,
+}
+
 fn get_languages() -> Result<Vec<APILanguage>> {
     let json: APIResponse<APIListData<APILanguage>> =
         reqwest::blocking::get(format!("{BASE_URL}/api/v2/languages"))
