@@ -61,7 +61,7 @@ struct ConfyConfig {
 
 #[allow(dead_code)]
 /// DMOJ API response
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct APIResponse<T> {
     api_version: String,
     method: String,
@@ -72,14 +72,14 @@ struct APIResponse<T> {
 
 #[allow(dead_code)]
 /// DMOJ API data format for a single object
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct APISingleData<T> {
     object: T,
 }
 
 #[allow(dead_code)]
 /// DMOJ API data format for lists of objects
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct APIListData<T> {
     current_object_count: i32,
     objects_per_page: i32,
@@ -92,7 +92,7 @@ struct APIListData<T> {
 
 #[allow(dead_code)]
 /// DMOJ API error format
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct APIErrorFormat {
     code: String,
     message: String,
@@ -100,7 +100,7 @@ struct APIErrorFormat {
 
 #[allow(dead_code)]
 /// DMOJ API /api/v2/languages format
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct APILanguage {
     id: i32,
     key: String,
@@ -113,7 +113,7 @@ struct APILanguage {
 
 #[allow(dead_code)]
 /// DMOJ API /api/v2/submission/<submission id> format
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct APISubmission {
     id: i32,
     problem: String,
@@ -131,7 +131,7 @@ struct APISubmission {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(untagged)]
 enum APISubmissionCaseOrBatch {
     Case(APISubmissionCase),
@@ -139,7 +139,7 @@ enum APISubmissionCaseOrBatch {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct APISubmissionCase {
     r#type: String,
     case_id: i32,
@@ -151,7 +151,7 @@ struct APISubmissionCase {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct APISubmissionBatch {
     r#type: String,
     batch_id: i32,
