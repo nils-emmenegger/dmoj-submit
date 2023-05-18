@@ -3,6 +3,7 @@ use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 use std::{collections::HashMap, fs};
 
 #[derive(Parser)]
@@ -199,11 +200,6 @@ fn main() -> Result<()> {
                 .with_context(|| "could not store configuration")?;
         }
         Commands::Submit(sub_args) => {
-            // check that provided file exists
-            if !sub_args.file.is_file() {
-                return Err(anyhow!("could not find file {}", sub_args.file.display()));
-            }
-
             let source =
                 fs::read_to_string(&sub_args.file).with_context(|| "could not read file")?;
 
@@ -266,17 +262,19 @@ fn main() -> Result<()> {
                 token,
                 language
             );
-            // Try to access the /problem/{problem}/submit page
-            let client = reqwest::blocking::Client::new();
-            let header = format!("Bearer {}", token);
-            let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
-            println!("Fetching {} ...", url);
 
-            // TODO: figure out what to do about the .to_lowercase spam
+            // make a map of language keys to language ids
             let key_id_map = get_languages()?
                 .into_iter()
                 .map(|lang| (lang.key.to_lowercase(), lang.id))
                 .collect::<HashMap<String, i32>>();
+
+            // TODO: empty file returns status code 200 but does not actually submit or redirect
+            // FIXED!, files are check to ensure they are not empty now so this should not be possible.
+            //         Still keeping the original comment because successful submissions should return
+            //         a 300 error code, not a 200
+            let header = format!("Bearer {}", token);
+            let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
             let params = [
                 ("problem", problem),
                 ("source", source),
@@ -288,18 +286,30 @@ fn main() -> Result<()> {
                         .to_string(),
                 ),
             ];
-            // TODO: empty file returns status code 200 but does not actually submit or redirect
-            // FIXED!, files are check to ensure they are not empty now so this should not be possible.
-            //         Still keeping the original comment because successful submissions should return
-            //         a 300 error code, not a 200
+            // Need some concurrency primitives here to appease the compiler
+            let redirect_url = Arc::new(Mutex::new(None));
+            let client = {
+                let redirect_url_clone = Arc::clone(&redirect_url);
+                reqwest::blocking::Client::builder()
+                    .redirect(reqwest::redirect::Policy::custom(move |attempt| {
+                        *redirect_url_clone.lock().unwrap() = Some(attempt.url().to_string());
+                        attempt.stop()
+                    }))
+                    .build()
+            }?;
+            log::info!("Fetching {} ...", url);
             let submission = client
                 .post(&url)
                 .form(&params)
                 .header(AUTHORIZATION, &header)
                 .send()?;
+
+            let redirect_url = redirect_url.lock().unwrap().clone().with_context(|| {
+                "Submission request did not get redirected to the submission page"
+            })?;
             let res = submission.status().as_u16();
             // TODO: figure out wonkiness with POST codes to make sure it does not break the below code block
-            if res != 200 {
+            if res != 302 {
                 return match res {
                     400 => Err(anyhow!("Error 400, bad request, the header you provided is invalid")),
                     401 => Err(anyhow!("Error 401, unauthorized, the token you provided is invalid")),
@@ -309,9 +319,11 @@ fn main() -> Result<()> {
                     code => Err(anyhow!("Code {code}, unknown network error")),
                 };
             }
-
-            let submission_id = &submission.url().as_str()[27..];
-            println!("submission: {}", submission_id);
+            let submission_id = redirect_url
+                .split('/')
+                .last()
+                .with_context(|| "could not determine submission id")?;
+            log::info!("submission: {}", submission_id);
             // TODO: monitor submission status using the /api/v2/submission/<submission id> endpoint
         }
         Commands::ListLanguages => {
