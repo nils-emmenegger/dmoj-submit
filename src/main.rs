@@ -269,10 +269,6 @@ fn main() -> Result<()> {
                 .map(|lang| (lang.key.to_lowercase(), lang.id))
                 .collect::<HashMap<String, i32>>();
 
-            // TODO: empty file returns status code 200 but does not actually submit or redirect
-            // FIXED!, files are check to ensure they are not empty now so this should not be possible.
-            //         Still keeping the original comment because successful submissions should return
-            //         a 300 error code, not a 200
             let header = format!("Bearer {}", token);
             let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
             let params = [
