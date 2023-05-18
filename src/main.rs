@@ -315,11 +315,12 @@ fn main() -> Result<()> {
                     code => Err(anyhow!("Code {code}, unknown network error")),
                 };
             }
+            log::info!("submission url: {}", redirect_url);
             let submission_id = redirect_url
                 .split('/')
                 .last()
                 .with_context(|| "could not determine submission id")?;
-            log::info!("submission: {}", submission_id);
+            log::info!("submission id: {}", submission_id);
             // TODO: monitor submission status using the /api/v2/submission/<submission id> endpoint
         }
         Commands::ListLanguages => {
