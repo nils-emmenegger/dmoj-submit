@@ -337,7 +337,7 @@ fn main() -> Result<()> {
                 let redirect_url_clone = Arc::clone(&redirect_url);
                 reqwest::blocking::Client::builder()
                     .redirect(reqwest::redirect::Policy::custom(move |attempt| {
-                        *redirect_url_clone.lock().unwrap() = Some(attempt.url().to_string());
+                        *redirect_url_clone.lock().unwrap() = Some(attempt.url().clone());
                         attempt.stop()
                     }))
                     .build()
@@ -366,6 +366,7 @@ fn main() -> Result<()> {
             }
             log::info!("submission url: {}", redirect_url);
             let submission_id = redirect_url
+                .as_str()
                 .split('/')
                 .last()
                 .with_context(|| "could not determine submission id")?;
