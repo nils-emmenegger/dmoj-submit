@@ -94,7 +94,7 @@ struct APIListData<T> {
 /// DMOJ API error format
 #[derive(Deserialize, Debug)]
 struct APIErrorFormat {
-    code: String,
+    code: i32,
     message: String,
 }
 
