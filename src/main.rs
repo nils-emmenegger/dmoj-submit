@@ -4,6 +4,7 @@ use clap_verbosity_flag::Verbosity;
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use std::{collections::HashMap, fs};
 
 #[derive(Parser)]
@@ -371,7 +372,45 @@ fn main() -> Result<()> {
                 .last()
                 .with_context(|| "could not determine submission id")?;
             log::info!("submission id: {}", submission_id);
-            // TODO: monitor submission status using the /api/v2/submission/<submission id> endpoint
+
+            let client = reqwest::blocking::Client::new();
+            loop {
+                // TODO: add more logging
+                let json: APIResponse<APISingleData<APISubmission>> = client
+                    .get(format!("{BASE_URL}/api/v2/submission/{submission_id}"))
+                    .header(AUTHORIZATION, &header)
+                    .send()?
+                    .json()
+                    .with_context(|| "converting API response to json failed")?;
+                // TODO: maybe add a dmoj_json_unwrap function that encapsulates the
+                // if let Some(error) = json.error ... else if let Some(data) = json.data ... else return err
+                // form and just returns a Result with successful data.
+                // Right now this form is copied/repeated in get_languages.
+                if let Some(error) = json.error {
+                    return Err(anyhow!(
+                        "API request failed with code {} and message `{}`",
+                        error.code,
+                        error.message
+                    ));
+                } else if let Some(data) = json.data {
+                    // TODO: https://github.com/DMOJ/online-judge/blob/master/judge/models/submission.py
+                    //       Use mappings in DMOJ source code to make the messages below actually readable.
+                    //       Right now status is stuff like "P" and "G" and result is "AC", "WA", "TLE", etc.
+                    if let Some(result) = data.object.result {
+                        // Submission has finished grading
+                        println!("Submission finished with result {}", result);
+                        break;
+                    } else {
+                        // Submission has not finished grading
+                        println!("Status {}", data.object.status);
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Neither data nor error were defined in the API response"
+                    ));
+                }
+                std::thread::sleep(Duration::from_secs(1));
+            }
         }
         Commands::ListLanguages => {
             let mut print_lang_list = get_languages()?
