@@ -373,6 +373,36 @@ fn main() -> Result<()> {
                 .with_context(|| "could not determine submission id")?;
             log::info!("submission id: {}", submission_id);
 
+            // https://github.com/DMOJ/online-judge/blob/master/judge/models/submission.py
+            // from https://github.com/DMOJ/online-judge/blob/81f3c90ffad12586f9edc9e17c8aa0bd66f28ecc/judge/models/submission.py#L49
+            const USER_DISPLAY_CODES_TUPLES: [(&str, &str); 15] = [
+                ("AC", "Accepted"),
+                ("WA", "Wrong Answer"),
+                ("SC", "Short Circuited"),
+                ("TLE", "Time Limit Exceeded"),
+                ("MLE", "Memory Limit Exceeded"),
+                ("OLE", "Output Limit Exceeded"),
+                ("IR", "Invalid Return"),
+                ("RTE", "Runtime Error"),
+                ("CE", "Compile Error"),
+                ("IE", "Internal Error (judging server error)"),
+                ("QU", "Queued"),
+                ("P", "Processing"),
+                ("G", "Grading"),
+                ("D", "Completed"),
+                ("AB", "Aborted"),
+            ];
+            let user_display_codes_map: HashMap<String, String> = HashMap::from_iter(
+                USER_DISPLAY_CODES_TUPLES
+                    .into_iter()
+                    .map(|(key, val)| (key.to_string(), val.to_string())),
+            );
+            let get_display = |code: &str| {
+                user_display_codes_map
+                    .get(code)
+                    .with_context(|| "unknown display code")
+            };
+
             let client = reqwest::blocking::Client::new();
             loop {
                 // TODO: add more logging
@@ -393,16 +423,16 @@ fn main() -> Result<()> {
                         error.message
                     ));
                 } else if let Some(data) = json.data {
-                    // TODO: https://github.com/DMOJ/online-judge/blob/master/judge/models/submission.py
-                    //       Use mappings in DMOJ source code to make the messages below actually readable.
-                    //       Right now status is stuff like "P" and "G" and result is "AC", "WA", "TLE", etc.
                     if let Some(result) = data.object.result {
                         // Submission has finished grading
-                        println!("Submission finished with result {}", result);
+                        println!(
+                            "Submission finished with result {}",
+                            get_display(result.as_str())?
+                        );
                         break;
                     } else {
                         // Submission has not finished grading
-                        println!("Status {}", data.object.status);
+                        println!("Status {}", get_display(data.object.status.as_str())?);
                     }
                 } else {
                     return Err(anyhow!(
