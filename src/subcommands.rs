@@ -1,10 +1,11 @@
 use crate::api::*;
 use anyhow::{anyhow, Context, Result};
+use colored::Colorize;
 use reqwest::header::AUTHORIZATION;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
+use APISubmissionCaseOrBatch::{Batch, Case};
 pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Result<()> {
     // make a map of language keys to language ids
     let key_id_map = get_languages()?
@@ -123,14 +124,54 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
         } else if let Some(data) = json.data {
             if let Some(result) = data.object.result {
                 // Submission has finished grading
+                // TODO: cleanup code
+                for i in (1..).zip(data.object.cases.iter()) {
+                    match i.1 {
+                        Case(case) => println!(
+                            "Case {: >3}: {} [{:.3}s, {:.2}MB]",
+                            format!("#{}", i.0),
+                            match case.status.as_str() {
+                                "AC" => case.status.as_str().green(),
+                                "WA" => case.status.as_str().red(),
+                                _ => case.status.as_str().yellow(),
+                            },
+                            case.time,
+                            case.memory / 1000.0
+                        ),
+                        Batch(batch) => {
+                            println!("Batch {}:", i.0);
+                            for j in (1..).zip(batch.cases.iter()) {
+                                println!(
+                                    "\tCase {: >3}: {} [{:.3}s, {:.2}MB]",
+                                    format!("#{}", j.0),
+                                    match j.1.status.as_str() {
+                                        "AC" => j.1.status.as_str().green(),
+                                        "WA" => j.1.status.as_str().red(),
+                                        _ => j.1.status.as_str().yellow(),
+                                    },
+                                    j.1.time,
+                                    j.1.memory / 1000.0
+                                );
+                            }
+                        }
+                    }
+                }
                 println!(
-                    "Submission finished with result {}",
-                    get_display(result.as_str())?
+                    "Result: {}\nResources: {:.3}s, {:.2}MB\nFinal score: {}/{}",
+                    match result.as_str() {
+                        "AC" => result.green(),
+                        "WA" => result.red(),
+                        _ => result.yellow(),
+                    },
+                    data.object.time.unwrap(),
+                    data.object.memory.unwrap() / 1000.0,
+                    data.object.case_points,
+                    data.object.case_total
                 );
                 break;
             } else {
                 // Submission has not finished grading
-                println!("Status {}", get_display(data.object.status.as_str())?);
+                log::info!("Status {}", get_display(data.object.status.as_str())?);
             }
         } else {
             return Err(anyhow!(
