@@ -55,7 +55,7 @@ fn main() -> Result<()> {
                     .with_context(|| "couldn't parse language argument")?
                     .into_iter()
                     .for_each(|(ext, lang_key)| {
-                        log::info!("Set extension {ext} to language key {lang_key}");
+                        log::info!("Set extension {} to language key {}", ext, lang_key);
                         cfg.ext_key_map
                             .as_mut()
                             .unwrap()
@@ -113,7 +113,7 @@ fn main() -> Result<()> {
                 {
                     cfg_lang_key
                 } else if let Some(default_lang_key) = ext_key_default_map.get(&file_ext).cloned() {
-                    log::warn!("Defaulting to {default_lang_key}");
+                    log::warn!("Defaulting to {}", default_lang_key);
                     default_lang_key
                 } else {
                     return Err(anyhow!("could not determine language"));

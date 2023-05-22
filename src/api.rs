@@ -106,7 +106,7 @@ pub struct APISubmissionBatch {
 
 pub fn get_languages() -> Result<Vec<APILanguage>> {
     let json: APIResponse<APIListData<APILanguage>> =
-        reqwest::blocking::get(format!("{BASE_URL}/api/v2/languages"))
+        reqwest::blocking::get(format!("{}/api/v2/languages", BASE_URL))
             .with_context(|| "API request failed")?
             .json()
             .with_context(|| "converting API response to json failed")?;

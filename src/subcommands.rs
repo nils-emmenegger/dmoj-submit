@@ -16,7 +16,7 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
         .with_context(|| "could not determine language id")?;
 
     let header = format!("Bearer {}", token);
-    let url = format!("{}/problem/{}/submit", BASE_URL.to_string(), problem);
+    let url = format!("{}/problem/{}/submit", BASE_URL, problem);
     let params = [
         ("problem", problem),
         ("source", source),
@@ -60,7 +60,7 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
             )),
             404 => Err(anyhow!("Error 404, not found, the problem does not exist")),
             500 => Err(anyhow!("Error 500, internal server error")),
-            code => Err(anyhow!("Code {code}, unknown network error")),
+            code => Err(anyhow!("Code {}, unknown network error", code)),
         };
     }
     log::info!("submission url: {}", redirect_url);
@@ -105,7 +105,7 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
     loop {
         // TODO: add more logging
         let json: APIResponse<APISingleData<APISubmission>> = client
-            .get(format!("{BASE_URL}/api/v2/submission/{submission_id}"))
+            .get(format!("{}/api/v2/submission/{}", BASE_URL, submission_id))
             .header(AUTHORIZATION, &header)
             .send()?
             .json()
