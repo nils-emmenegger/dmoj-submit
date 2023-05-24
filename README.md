@@ -1,61 +1,86 @@
 # dmoj-submit
+
 A CLI tool for submitting to DMOJ.
 
 ## Installation
+
 TODO: write this section
+
 ## Usage
-Before being able to use DMOJ-SUBMIT you must have a DMOJ API token. You can get yours [on the profile edit page on DMOJ](https://dmoj.ca/edit/profile/).  
-  
+
+Before being able to use dmoj-submit you must have a DMOJ API token. You can get yours [on the profile edit page on DMOJ](https://dmoj.ca/edit/profile/).
+
 The dmoj-submit program has three operations.
-### list-languages
-dmoj-submit will list languages supported by DMOJ in alphabetical order.  
-Here is how you call it:
-```
-dmoj-submit list-languages
-```
+
+### submit
+
+This is the main operation and raison d'être for dmoj-submit. This operation allows you to submit to DMOJ from your command line.
 
 ### config
-This operation will allow you to configure dmoj-submit to remember your API token and language preferences.  
-Here is how you may use it:
-```
-dmoj-submit config [options]
 
-Options:
-  -t, --token TOKEN                        set your API token
-  -l, --language EXTENSION:LANGUAGE        set a submission language as a default for a given file extension
-```
-Here is a example that will set the default token to be `my_token` and will make all python submissions use `PYPY3`:
-```
-dmoj-submit config -t my_token -l py:PYPY3
-```
-Previously set defaults may be overwritten by running the command again.
-### submit
-This is the main operation and raison d'être for dmoj-submit. This operation allows you to submit to DMOJ from your command line.  
-Here is how you may use it:
-```
-dmoj-submit submit [file] [options]
+This operation will allow you to configure dmoj-submit to remember your API token and language preferences. Previously set defaults may be overwritten by running the command again.
 
-file: this is the file you wish to submit
+### list-languages
 
-Options:
-  -p, --problem PROBLEM                    specify a problem to submit to
-  -t, --token TOKEN                        specify a token to use
-  -l, --language LANGUAGE                  specify the language you wish to use
-  -v                                       show warnings
-  -vv                                      show additional information
+dmoj-submit will list languages supported by DMOJ in alphabetical order. This helps determine what language key corresponds to your desired language.
+
+To see all subcommands and options, you can use the `help` subcommand, e.g. `dmoj-submit help` or `dmoj-submit help config`.
+
+The following is an example of using dmoj-submit. Lines prepended with `$` are user input. All other lines are program output. Additionally, MY_API_TOKEN should be replaced with your DMOJ API token.
+
 ```
-Here is an example of how one might submit to [hello world](https://dmoj.ca/problem/helloworld):
-```
-dmoj-submit submit file.py -p helloworld -l pypy3 -t my_token
-```
-Here is another example of how one could submit to the same problem after using `config` to set a token and language default and naming their file after the problem they wish to submit to:
-```
-dmoj-submit submit helloworld.py
-```
-dmoj-submit wil then output their submission results. It could look something like this:
-```
-Case  #1: AC [0.056s, 56.93MB]
+$ dmoj-submit config --token MY_API_TOKEN
+$ dmoj-submit config --language py:py3,java:java8 -vv
+[2023-05-23T19:43:02Z INFO  dmoj_submit] Set extension py to language key py3
+[2023-05-23T19:43:02Z INFO  dmoj_submit] Set extension java to language key java8
+$ dmoj-submit submit helloworld.py
+        Case  #1: AC [0.027s, 10.01MB]
 Result: AC
-Resources: 0.056s, 55.59MB
+Resources: 0.027s, 10.01MB
+Final score: 100/100
+$ dmoj-submit submit --problem helloworld --language text --token MY_API_TOKEN my_file
+        Case  #1: AC [0.005s, 1.64MB]
+Result: AC
+Resources: 0.005s, 1.64MB
 Final score: 100/100
 ```
+
+## Additional Information
+
+### How dmoj-submit determines problem and language when they are not explicitly specified
+
+Problem code is determined by file stem (e.g. `helloworld` for `helloworld.py`).
+
+Language can be determined by two methods, checked in this order:
+
+1. Configuration is checked for a file extension -> language key mapping. This can be set using `dmoj-submit config --language ...`. For example, when `helloworld.py` is submitted in the example in the Usage section, there already exists a mapping for `py:py3`, so the file extension `py` is mapped to the language key `py3` (Python 3).
+2. Hard-coded defaults defined by `EXT_KEY_DEFAULT_TUPLES` in `src/main.rs`. They are as follows:
+
+| File extension | Language key |
+|----------------|--------------|
+| c              | c            |
+| cpp            | cpp20        |
+| java           | java         |
+| kt             | kotlin       |
+| py             | pypy3        |
+| lua            | lua          |
+| rs             | rust         |
+| txt            | text         |
+| go             | go           |
+| hs             | hask         |
+| js             | v8js         |
+| nim            | nim          |
+| ml             | ocaml        |
+| zig            | zig          |
+
+### Config files
+
+dmoj-submit uses [confy](https://github.com/rust-cli/confy) for configuration, which in turn uses [directories](https://github.com/dirs-dev/directories-rs) to get the config directory [as defined here](https://docs.rs/directories/latest/directories/struct.ProjectDirs.html#method.config_dir). In short, it should be `~/.config/dmoj-submit/config.toml` on Linux, `C:\Users\YOUR_USERNAME\AppData\Roaming\dmoj-submit\config\config.toml` on Windows, and `~/Library/Application Support/dmoj-submit/config.toml` on MacOS.
+
+### Verbosity (e.g. `-vv`)
+
+dmoj-submit uses [clap-verbosity-flag](https://github.com/clap-rs/clap-verbosity-flag) to add support for verbosity. You can add up to 4 `--verbose` or `-v` flags to get more logging output.
+
+## Tips and Tricks
+
+To save yourself some typing, you can add an alias for `dmoj-submit submit`. For example, if you're using bash, you can add `alias ds="dmoj-submit submit"` to `~/.bashrc`.

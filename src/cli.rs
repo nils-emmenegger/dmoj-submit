@@ -16,7 +16,7 @@ pub enum Commands {
     Config(ConfigArgs),
     /// Submit to a problem
     Submit(SubmitArgs),
-    /// Retrieve available languages from the DMOJ API
+    /// Get available languages from DMOJ and print as `common_name: language_key` pairs
     ListLanguages,
 }
 
