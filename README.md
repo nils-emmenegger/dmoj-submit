@@ -24,7 +24,11 @@ This operation allows you to configure dmoj-submit to remember your API token an
 
 dmoj-submit lists languages supported by DMOJ in alphabetical order. This helps determine what language key corresponds to your desired language.
 
+### help
+
 To see all subcommands and options, you can use the `help` subcommand, e.g. `dmoj-submit help` or `dmoj-submit help config`.
+
+### examples
 
 The following is an example of using dmoj-submit. Lines prepended with `$` are user input. All other lines are program output. Additionally, MY_API_TOKEN should be replaced with your DMOJ API token.
 
