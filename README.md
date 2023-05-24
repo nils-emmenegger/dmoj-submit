@@ -10,7 +10,7 @@ TODO: write this section
 
 Before being able to use dmoj-submit you must have a DMOJ API token. You can get yours [on the profile edit page on DMOJ](https://dmoj.ca/edit/profile/).
 
-The dmoj-submit program has three operations.
+Below are dmoj-submit's subcommands.
 
 ### submit
 
@@ -28,9 +28,9 @@ dmoj-submit lists languages supported by DMOJ in alphabetical order. This helps 
 
 To see all subcommands and options, you can use the `help` subcommand, e.g. `dmoj-submit help` or `dmoj-submit help config`.
 
-### examples
+### Examples
 
-The following is an example of using dmoj-submit. Lines prepended with `$` are user input. All other lines are program output. Additionally, MY_API_TOKEN should be replaced with your DMOJ API token.
+The following is an example of how you might use dmoj-submit. Lines prepended with `$` are user input. All other lines are program output. Additionally, MY_API_TOKEN should be replaced with your DMOJ API token.
 
 ```
 $ dmoj-submit config --token MY_API_TOKEN
