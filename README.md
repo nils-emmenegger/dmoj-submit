@@ -18,11 +18,11 @@ This is the main operation and raison d'être for dmoj-submit. This operation al
 
 ### config
 
-This operation will allow you to configure dmoj-submit to remember your API token and language preferences. Previously set defaults may be overwritten by running the command again.
+This operation allows you to configure dmoj-submit to remember your API token and language preferences. Previously set defaults may be overwritten by running the command again.
 
 ### list-languages
 
-dmoj-submit will list languages supported by DMOJ in alphabetical order. This helps determine what language key corresponds to your desired language.
+dmoj-submit lists languages supported by DMOJ in alphabetical order. This helps determine what language key corresponds to your desired language.
 
 To see all subcommands and options, you can use the `help` subcommand, e.g. `dmoj-submit help` or `dmoj-submit help config`.
 
@@ -53,7 +53,7 @@ Problem code is determined by file stem (e.g. `helloworld` for `helloworld.py`).
 
 Language can be determined by two methods, checked in this order:
 
-1. Configuration is checked for a file extension -> language key mapping. This can be set using `dmoj-submit config --language ...`. For example, when `helloworld.py` is submitted in the example in the Usage section, there already exists a mapping for `py:py3`, so the file extension `py` is mapped to the language key `py3` (Python 3).
+1. Configuration is checked for a file extension -> language key mapping. This can be set using `dmoj-submit config --language ...`. For example, when `helloworld.py` is submitted in the example in the [Usage](#usage) section, there already exists a mapping for `py:py3`, so the file extension `py` is mapped to the language key `py3` (Python 3).
 2. Hard-coded defaults defined by `EXT_KEY_DEFAULT_TUPLES` in `src/main.rs`. They are as follows:
 
 | File extension | Language key |
