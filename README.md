@@ -38,12 +38,12 @@ $ dmoj-submit config --language py:py3,java:java8 -vv
 [2023-05-23T19:43:02Z INFO  dmoj_submit] Set extension py to language key py3
 [2023-05-23T19:43:02Z INFO  dmoj_submit] Set extension java to language key java8
 $ dmoj-submit submit helloworld.py
-        Case  #1: AC [0.027s, 10.01MB]
+Case  #1: AC [0.027s, 10.01MB]
 Result: AC
 Resources: 0.027s, 10.01MB
 Final score: 100/100
 $ dmoj-submit submit --problem helloworld --language text --token MY_API_TOKEN my_file
-        Case  #1: AC [0.005s, 1.64MB]
+Case  #1: AC [0.005s, 1.64MB]
 Result: AC
 Resources: 0.005s, 1.64MB
 Final score: 100/100
