@@ -9,7 +9,7 @@ use APISubmissionCaseOrBatch::{Batch, Case};
 
 fn print_case(it: u32, status: &str, time: f64, memory: f64) -> () {
     println!(
-        "\tCase {: >3}: {} [{:.3}s, {:.2}MB]",
+        "Case {: >3}: {} [{:.3}s, {:.2}MB]",
         format!("#{}", it),
         match status {
             "AC" => status.green(),
@@ -145,6 +145,7 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
                         Batch(batch) => {
                             println!("Batch {}:", i.0);
                             for j in (1..).zip(batch.cases.iter()) {
+                                print!("\t");
                                 print_case(j.0, j.1.status.as_str(), j.1.time, j.1.memory);
                             }
                         }
