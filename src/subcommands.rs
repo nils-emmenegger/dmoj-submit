@@ -184,6 +184,11 @@ pub fn list_languages() -> Result<()> {
         .map(|lang| format!("{}: {}", lang.common_name, lang.key.to_lowercase()))
         .collect::<Vec<String>>();
     print_lang_list.sort_unstable();
+    println!(
+        "{}: {}",
+        "Common name".underline().bold(),
+        "Language key".underline().bold()
+    );
     println!("{}", print_lang_list.join("\n"));
     Ok(())
 }
