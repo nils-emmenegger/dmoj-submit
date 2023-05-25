@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use APISubmissionCaseOrBatch::{Batch, Case};
 
-fn print_case(it: u32, status: &str, time: f64, memory: f64) -> () {
+fn print_case(it: u32, status: &str, time: f64, memory: f64) {
     println!(
         "Case {: >3}: {} [{:.3}s, {:.2}MB]",
         format!("#{}", it),
