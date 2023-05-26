@@ -1,0 +1,100 @@
+# Based on:
+# https://github.com/BurntSushi/ripgrep/blob/master/.github/workflows/release.yml
+# https://github.com/kube-rs/kopium/blob/main/.github/workflows/release.yml
+
+name: release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  build-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [linux, macos, win-msvc, win32-msvc]
+        include:
+          - build: linux
+            os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-musl
+          - build: macos
+            os: macos-latest
+            rust: stable
+            target: x86_64-apple-darwin
+          - build: win-msvc
+            os: windows-latest
+            rust: stable
+            target: x86_64-pc-windows-msvc
+          - build: win32-msvc
+            os: windows-latest
+            rust: stable
+            target: i686-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        if: matrix.build != 'linux'
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+
+      - name: Build release binary
+        if: matrix.build != 'linux'
+        run: cargo build --release --target "${{ matrix.target }}"
+
+      - name: Build release binary (Linux musl)
+        if: matrix.build == 'linux'
+        run: |
+          docker run --rm -t \
+            -v $HOME/.cargo/registry/:/root/.cargo/registry \
+            -v "$(pwd)":/volume \
+            clux/muslrust:stable \
+            cargo build --release --target "${{ matrix.target }}"
+
+      - name: Set artifact name and path
+        shell: bash
+        run: |
+          ARTIFACT_NAME="dmoj-submit-${{ github.ref_name }}-${{ matrix.target }}"
+          ARTIFACT_PATH="target/${{ matrix.target }}/release/dmoj-submit"
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            ARTIFACT_NAME+=".exe"
+            ARTIFACT_PATH+=".exe"
+          fi
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> "$GITHUB_ENV"
+          echo "ARTIFACT_PATH=$ARTIFACT_PATH" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACT_PATH }}
+
+  create-release:
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Rename files
+        shell: bash
+        run: |
+          mkdir release-assets
+          for dir in artifacts/*/; do
+            mv $dir* release-assets/$(basename $dir)
+          done
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-assets/*
+          fail_on_unmatched_files: true
