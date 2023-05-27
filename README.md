@@ -4,8 +4,11 @@ A CLI tool for submitting to DMOJ.
 
 ## Installation
 
-First make sure you have rust and cargo installed. If not, you can do so through [rustup](https://rustup.rs/). To install dmoj-submit, run the following command:
-```
+You can download the latest official version on our [releases page](https://github.com/nils-emmenegger/dmoj-submit/releases).
+
+You can also install it directly from GitHub. First make sure you have rust and cargo installed. If not, you can do so through [rustup](https://rustup.rs/). To install dmoj-submit, run the following command:
+
+```sh
 $ cargo install --git  https://github.com/nils-emmenegger/dmoj-submit
 ```
 
@@ -13,7 +16,7 @@ $ cargo install --git  https://github.com/nils-emmenegger/dmoj-submit
 
 Before being able to use dmoj-submit you must have a DMOJ API token. You can get yours [on the profile edit page on DMOJ](https://dmoj.ca/edit/profile/).
 
-Below are dmoj-submit's subcommands.
+Below are dmoj-submit's subcommands:
 
 ### submit
 
