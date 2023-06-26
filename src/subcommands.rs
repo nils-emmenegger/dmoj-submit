@@ -1,24 +1,139 @@
 use crate::api::*;
 use anyhow::{anyhow, Context, Result};
-use colored::Colorize;
+use console::style;
+use indicatif::ProgressBar;
 use reqwest::header::AUTHORIZATION;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use APISubmissionCaseOrBatch::{Batch, Case};
 
-fn print_case(it: u32, status: &str, time: f64, memory: f64) {
-    println!(
-        "Case {: >3}: {} [{:.3}s, {:.2}MB]",
-        format!("#{}", it),
-        match status {
-            "AC" => status.green(),
-            "WA" => status.red(),
-            _ => status.yellow(),
-        },
-        time,
-        memory / 1024.0
-    );
+struct FlattenedCasesItem {
+    /// true if it's a case inside a batch
+    is_batched_case: bool,
+    /// case or batch number (within a batch, cases start from 1)
+    num: i32,
+    item: APISubmissionCaseOrBatch,
+}
+
+fn flatten_cases(cases: Vec<APISubmissionCaseOrBatch>) -> Vec<FlattenedCasesItem> {
+    // `Case`s stay the same, but `Batch`s now contain empty vectors in their `cases` field and the cases that they correspond to follow as `Case`s
+    let mut ret = Vec::new();
+    let mut batch_num = 1;
+    for i in cases.into_iter() {
+        match i {
+            x @ Case(_) => {
+                ret.push(FlattenedCasesItem {
+                    is_batched_case: false,
+                    // Unbatched cases use and increment the batch number
+                    // e.g. https://dmoj.ca/submission/4998420
+                    num: batch_num,
+                    item: x,
+                });
+                batch_num += 1;
+            }
+            Batch(batch) => {
+                ret.push(FlattenedCasesItem {
+                    is_batched_case: false,
+                    num: batch_num,
+                    item: Batch(APISubmissionBatch {
+                        cases: Vec::new(),
+                        ..batch
+                    }),
+                });
+                batch_num += 1;
+                ret.extend(batch.cases.into_iter().zip(1..).map(|(case, case_num)| {
+                    FlattenedCasesItem {
+                        is_batched_case: true,
+                        num: case_num,
+                        item: Case(case),
+                    }
+                }));
+            }
+        }
+    }
+    ret
+}
+
+impl FlattenedCasesItem {
+    fn gen_msg(&self) -> String {
+        // https://github.com/DMOJ/online-judge/blob/master/templates/submission/status-testcases.html#L51
+        match &self.item {
+            Case(case) => {
+                let title = if self.is_batched_case {
+                    style(format!("  Case #{}:", self.num))
+                } else {
+                    style(format!("Test case #{}:", self.num)).bold()
+                };
+                let status = match case.status.as_str() {
+                    "AC" if case.points == case.total => style("AC").green(),
+                    "AC" if case.points != case.total => style("AC").yellow().bright(),
+                    "WA" => style("WA").red().bright(),
+                    "TLE" => style("TLE").black(),
+                    "SC" => style("—").black(),
+                    code @ ("MLE" | "OLE" | "RTE" | "IR") => style(code).red(),
+                    unexpected_status => {
+                        log::warn!("Unexpected case status code");
+                        style(unexpected_status)
+                    }
+                };
+                // Only used when not SC (short-circuited)
+                let time_and_mem =
+                    || format!("[{:.3}s, {:.2} MB]", case.time, case.memory / 1024.0);
+                // Only used for unbatched test cases
+                let points = || format!("({:.0}/{:.0})", case.points, case.total);
+                if case.status != "SC" {
+                    if self.is_batched_case {
+                        format!("{} {} {}", title, status, time_and_mem())
+                    } else {
+                        format!("{} {} {} {}", title, status, time_and_mem(), points())
+                    }
+                } else if self.is_batched_case {
+                    format!("{} {}", title, status)
+                } else {
+                    format!("{} {} {}", title, status, points())
+                }
+            }
+            Batch(batch) => {
+                let title = style(format!("Batch #{}", self.num)).bold();
+                let points = format!("(?/{:.0} points)", batch.total);
+                format!("{} {}", title, points)
+            }
+        }
+    }
+}
+
+struct Progress {
+    spinner: ProgressBar,
+    cases: Vec<FlattenedCasesItem>,
+}
+
+impl Progress {
+    fn new() -> Self {
+        let spinner = ProgressBar::new_spinner();
+        spinner.enable_steady_tick(Duration::from_millis(120));
+        Self {
+            spinner,
+            cases: Vec::new(),
+        }
+    }
+
+    fn extend(&mut self, cases: Vec<APISubmissionCaseOrBatch>) {
+        let mut cases = flatten_cases(cases);
+
+        let new_cases = cases.split_off(self.cases.len());
+        let _old_cases = cases;
+
+        // print new cases and add to self.cases
+        for case in new_cases.into_iter() {
+            self.spinner.println(case.gen_msg());
+            self.cases.push(case);
+        }
+    }
+
+    fn finish(self) {
+        self.spinner.finish_and_clear();
+    }
 }
 
 pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Result<()> {
@@ -87,37 +202,8 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
         .with_context(|| "could not determine submission id")?;
     log::info!("submission id: {}", submission_id);
 
-    // https://github.com/DMOJ/online-judge/blob/master/judge/models/submission.py
-    // from https://github.com/DMOJ/online-judge/blob/81f3c90ffad12586f9edc9e17c8aa0bd66f28ecc/judge/models/submission.py#L49
-    const USER_DISPLAY_CODES_TUPLES: [(&str, &str); 15] = [
-        ("AC", "Accepted"),
-        ("WA", "Wrong Answer"),
-        ("SC", "Short Circuited"),
-        ("TLE", "Time Limit Exceeded"),
-        ("MLE", "Memory Limit Exceeded"),
-        ("OLE", "Output Limit Exceeded"),
-        ("IR", "Invalid Return"),
-        ("RTE", "Runtime Error"),
-        ("CE", "Compile Error"),
-        ("IE", "Internal Error (judging server error)"),
-        ("QU", "Queued"),
-        ("P", "Processing"),
-        ("G", "Grading"),
-        ("D", "Completed"),
-        ("AB", "Aborted"),
-    ];
-    let user_display_codes_map: HashMap<String, String> = HashMap::from_iter(
-        USER_DISPLAY_CODES_TUPLES
-            .into_iter()
-            .map(|(key, val)| (key.to_string(), val.to_string())),
-    );
-    let get_display = |code: &str| {
-        user_display_codes_map
-            .get(code)
-            .with_context(|| "unknown display code")
-    };
-
     let client = reqwest::blocking::Client::new();
+    let mut progress = Progress::new();
     loop {
         // TODO: add more logging
         let json: APIResponse<APISingleData<APISubmission>> = client
@@ -137,36 +223,45 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
                 error.message
             ));
         } else if let Some(data) = json.data {
+            progress.extend(data.object.cases);
+
             if let Some(result) = data.object.result {
                 // Submission has finished grading
-                for i in (1..).zip(data.object.cases.iter()) {
-                    match i.1 {
-                        Case(case) => print_case(i.0, case.status.as_str(), case.time, case.memory),
-                        Batch(batch) => {
-                            println!("Batch {}:", i.0);
-                            for j in (1..).zip(batch.cases.iter()) {
-                                print!("\t");
-                                print_case(j.0, j.1.status.as_str(), j.1.time, j.1.memory);
-                            }
-                        }
+                progress.finish();
+                println!();
+                // https://github.com/DMOJ/online-judge/blob/master/templates/submission/status-testcases.html#L126
+                match result.as_str() {
+                    "IE" => {
+                        // https://github.com/DMOJ/online-judge/blob/master/templates/submission/internal-error-message.html#L3
+                        println!("{}", style("An internal error occurred while grading, and the DMOJ administrators have been notified\nIn the meantime, try resubmitting in a few seconds.").red().bright())
+                    }
+                    "CE" => println!("Compilation error"),
+                    "AB" => println!("Submission aborted!"),
+                    _ => {
+                        // print resources
+                        println!(
+                            "{} {}, {:.2} MB",
+                            style("Resources:").bold(),
+                            if result == "TLE" {
+                                "---".to_string()
+                            } else {
+                                format!("{:.3}s", data.object.time.unwrap())
+                            },
+                            data.object.memory.unwrap() / 1024.0,
+                        );
+
+                        // TODO: implement maximum single-case runtime
+
+                        // print final score
+                        println!(
+                            "{} {:.0}/{:.0}",
+                            style("Final score:").bold(),
+                            data.object.case_points,
+                            data.object.case_total
+                        );
                     }
                 }
-                println!(
-                    "Result: {}\nResources: {:.3}s, {:.2}MB\nFinal score: {}/{}",
-                    match result.as_str() {
-                        "AC" => result.green(),
-                        "WA" => result.red(),
-                        _ => result.yellow(),
-                    },
-                    data.object.time.unwrap(),
-                    data.object.memory.unwrap() / 1024.0,
-                    data.object.case_points,
-                    data.object.case_total
-                );
                 break;
-            } else {
-                // Submission has not finished grading
-                log::info!("Status {}", get_display(data.object.status.as_str())?);
             }
         } else {
             return Err(anyhow!(
@@ -186,8 +281,8 @@ pub fn list_languages() -> Result<()> {
     print_lang_list.sort_unstable();
     println!(
         "{}: {}",
-        "Common name".underline().bold(),
-        "Language key".underline().bold()
+        style("Common name").underlined().bold(),
+        style("Language key").underlined().bold()
     );
     println!("{}", print_lang_list.join("\n"));
     Ok(())
