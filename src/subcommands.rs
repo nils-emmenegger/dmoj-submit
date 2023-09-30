@@ -3,9 +3,9 @@ use anyhow::{anyhow, Context, Result};
 use console::style;
 use indicatif::ProgressBar;
 use reqwest::header::AUTHORIZATION;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::OnceLock;
 use std::time::Duration;
+use std::{collections::HashMap, sync::Arc};
 use APISubmissionCaseOrBatch::{Batch, Case};
 
 struct FlattenedCasesItem {
@@ -154,12 +154,12 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
         ("language", &lang_id.to_string()),
     ];
     // Need some concurrency primitives here to appease the compiler
-    let redirect_url = Arc::new(Mutex::new(None));
+    let redirect_url = Arc::new(OnceLock::new());
     let client = {
         let redirect_url_clone = Arc::clone(&redirect_url);
         reqwest::blocking::Client::builder()
             .redirect(reqwest::redirect::Policy::custom(move |attempt| {
-                *redirect_url_clone.lock().unwrap() = Some(attempt.url().clone());
+                redirect_url_clone.get_or_init(|| attempt.url().clone());
                 attempt.stop()
             }))
             .build()
@@ -172,9 +172,7 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
         .send()?;
 
     let redirect_url = redirect_url
-        .lock()
-        .unwrap()
-        .clone()
+        .get()
         .with_context(|| "Submission request did not get redirected to the submission page")?;
     let res = submission.status().as_u16();
     // TODO: figure out wonkiness with POST codes to make sure it does not break the below code block
