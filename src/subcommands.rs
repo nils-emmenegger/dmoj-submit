@@ -4,7 +4,7 @@ use console::style;
 use indicatif::ProgressBar;
 use reqwest::header::AUTHORIZATION;
 use std::sync::OnceLock;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::{collections::HashMap, sync::Arc};
 use APISubmissionCaseOrBatch::{Batch, Case};
 
@@ -207,6 +207,7 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
     let client = reqwest::blocking::Client::new();
     let mut progress = Progress::new();
     loop {
+        let before_req = Instant::now();
         // TODO: add more logging
         let json: APIResponse<APISingleData<APISubmission>> = client
             .get(format!("{}/api/v2/submission/{}", BASE_URL, submission_id))
@@ -270,7 +271,12 @@ pub fn submit(problem: &str, source: &str, token: &str, language: &str) -> Resul
                 "Neither data nor error were defined in the API response"
             ));
         }
-        std::thread::sleep(Duration::from_secs(1));
+        let after_req = Instant::now();
+        // 1 second between requests
+        // We can subtract the time that the request took
+        std::thread::sleep(
+            Duration::from_secs(1).saturating_sub(after_req.duration_since(before_req)),
+        );
     }
     Ok(())
 }
