@@ -2,7 +2,7 @@
 
 A CLI tool for submitting to DMOJ.
 
-![Using dmoj-submit][https://github.com/nils-emmenegger/dmoj-submit/blob/images/vhs-tapes/submit.gif?raw=true]
+![Using dmoj-submit](https://github.com/nils-emmenegger/dmoj-submit/blob/images/vhs-tapes/submit.gif?raw=true)
 
 ## Installation
 
