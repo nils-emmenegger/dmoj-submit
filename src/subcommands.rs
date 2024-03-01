@@ -60,10 +60,14 @@ impl FlattenedCasesItem {
         // https://github.com/DMOJ/online-judge/blob/master/templates/submission/status-testcases.html#L51
         match &self.item {
             Case(case) => {
+                let case_num = format!("#{}:", self.num);
+                // pads the right side with spaces if there are < 5 characters
+                // '#' + ':' + up to 3 digits = 5 characters
+                let padded_case_num = format!("{:<5}", case_num);
                 let title = if self.is_batched_case {
-                    style(format!("  Case #{}:", self.num))
+                    style(format!("  Case {}", padded_case_num))
                 } else {
-                    style(format!("Test case #{}:", self.num)).bold()
+                    style(format!("Test case {}", padded_case_num)).bold()
                 };
                 let status = match case.status.as_str() {
                     "AC" if case.points == case.total => style("AC").green(),
