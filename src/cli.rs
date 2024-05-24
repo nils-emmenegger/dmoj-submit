@@ -13,7 +13,9 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Set default API token, language, etc.
-    Config(ConfigArgs),
+    SetConfig(SetConfigArgs),
+    /// Show configuration
+    GetConfig,
     /// Submit to a problem
     Submit(SubmitArgs),
     /// Get available languages from DMOJ and print as `common_name: language_key` pairs
@@ -22,7 +24,7 @@ pub enum Commands {
 
 #[derive(Args)]
 #[group(required = true, multiple = true)]
-pub struct ConfigArgs {
+pub struct SetConfigArgs {
     /// Set API token
     #[arg(short, long)]
     pub token: Option<String>,

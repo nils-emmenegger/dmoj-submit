@@ -6,7 +6,7 @@ mod subcommands;
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use cli::{Cli, Commands};
-use config::{get_config, set_config};
+use config::{get_config, get_config_path, set_config};
 use std::{collections::HashMap, fs};
 
 fn main() -> Result<()> {
@@ -34,7 +34,7 @@ fn main() -> Result<()> {
         ("zig", "zig"),
     ];
     match cli.command {
-        Commands::Config(conf_args) => {
+        Commands::SetConfig(conf_args) => {
             let mut cfg = get_config()?;
             if let Some(token) = conf_args.token {
                 log::info!("setting token to '{}'", token);
@@ -63,6 +63,10 @@ fn main() -> Result<()> {
                     });
             }
             set_config(cfg)?;
+        }
+        Commands::GetConfig => {
+            println!("{}", get_config_path()?.display());
+            println!("{:#?}", get_config()?);
         }
         Commands::Submit(sub_args) => {
             let source =
